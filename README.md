@@ -1,5 +1,8 @@
 # 2048
-Play it in the terminal using the arrow keys
+
+2048 game implemented with go.
+
+Play it in the terminal using the arrow keys.
 
 ```
 [4 2 0 2]
