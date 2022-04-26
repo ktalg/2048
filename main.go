@@ -11,99 +11,142 @@ import (
 var grid = [4][4]int{}
 var empSize = 16
 var score int
+var step int
+
+var test bool
 
 func init() {
-	rand.Seed(time.Now().UnixNano())
+	if test {
+		return
+	}
 	err := termbox.Init()
 	if err != nil {
 		panic(err)
 	}
+
+	rand.Seed(time.Now().UnixNano())
 	randFillOne()
 	randFillOne()
-	printGrid()
+	printStatus()
 }
 
-var applyKey = map[termbox.Key]func(f func([4]int) [4]int){
-	termbox.KeyArrowUp: func(f func([4]int) [4]int) {
+var applyKey = map[termbox.Key]func(f func([4]int) [4]int) bool{
+	termbox.KeyArrowUp: func(f func([4]int) [4]int) (changed bool) {
 		for i := 0; i < 4; i++ {
 			var col [4]int
 			for j := 0; j < 4; j++ {
 				col[j] = grid[j][i]
 			}
-			col = f(col)
-			for j, newVal := range col {
+			newCol := f(col)
+			if newCol == col {
+				continue
+			}
+			changed = true
+			for j, newVal := range newCol {
 				grid[j][i] = newVal
 			}
 		}
+		return
 	},
-	termbox.KeyArrowDown: func(f func([4]int) [4]int) {
+	termbox.KeyArrowDown: func(f func([4]int) [4]int) (changed bool) {
 		for i := 0; i < 4; i++ {
 			var col [4]int
-			for j := 3; j >= 0; j-- {
-				col[j] = grid[j][i]
+			for j := 0; j < 4; j++ {
+				col[j] = grid[3-j][i]
 			}
-			col = f(col)
-			for j, newVal := range col {
+			newCol := f(col)
+			if newCol == col {
+				continue
+			}
+			changed = true
+			for j, newVal := range newCol {
 				grid[3-j][i] = newVal
 			}
 		}
+		return
 	},
-	termbox.KeyArrowLeft: func(f func([4]int) [4]int) {
+	termbox.KeyArrowLeft: func(f func([4]int) [4]int) (changed bool) {
 		for i := 0; i < 4; i++ {
-			grid[i] = f(grid[i])
-		}
-	},
-	termbox.KeyArrowRight: func(f func([4]int) [4]int) {
-		for i := 0; i < 4; i++ {
-			row := grid[i]
-			for i := 0; i < 4/2; i++ {
-				row[i], row[3-i] = row[3-i], row[i]
+			newRow := f(grid[i])
+			if grid[i] == newRow {
+				continue
 			}
-			grid[3-i] = f(row)
+			changed = true
+			grid[i] = newRow
 		}
+		return
+	},
+	termbox.KeyArrowRight: func(f func([4]int) [4]int) (changed bool) {
+		for i := 0; i < 4; i++ {
+			var row [4]int
+			for j := 0; j < 4; j++ {
+				row[j] = grid[i][3-j]
+			}
+			newRow := f(row)
+			if row == newRow {
+				continue
+			}
+			changed = true
+			for j, newVal := range newRow {
+				grid[i][3-j] = newVal
+			}
+		}
+		return
 	},
 }
 
 func merge(arr [4]int) [4]int {
 	var newArr [4]int
-	var arrI int
-	for i := 1; i < 4; i++ {
+	var ni int
+	var lastNum int
+	for i := 0; i < 4; i++ {
 		if arr[i] == 0 {
 			continue
 		}
-		if arr[i] == arr[i-1] {
-			add := arr[i] << 1
-			newArr[arrI] = add
-			i++
+		if arr[i] == lastNum {
+			db := lastNum << 1
+			lastNum = 0
+			newArr[ni-1] = db
 
-			score += add
+			score += db
 			empSize++
 		} else {
-			newArr[arrI] = arr[i]
+			newArr[ni] = arr[i]
+			lastNum = arr[i]
+			ni++
 		}
-		arrI++
 	}
 	return newArr
 }
-func printGrid() {
+func printStatus() {
+	if test {
+		return
+	}
 	termbox.Sync()
 	for _, row := range grid {
 		fmt.Println(row)
 	}
+	fmt.Println("score: ", score)
+	fmt.Println("step: ", step)
 }
 
 func main() {
 	for {
 		key := input()
 		apply := applyKey[key]
-		if apply != nil {
-			apply(merge)
-			randFillOne()
-			printGrid()
-			if empSize == 0 && death() {
-				fmt.Println("end!")
-				os.Exit(0)
-			}
+		if apply == nil {
+			continue
+		}
+		changed := apply(merge)
+		if !changed {
+			continue
+		}
+		step++
+		randFillOne()
+		printStatus()
+		if empSize == 0 && death() {
+			fmt.Println("end!")
+			os.Exit(0)
 		}
 	}
 }
@@ -118,7 +161,6 @@ func input() termbox.Key {
 			}
 			return event.Key
 		}
-		fmt.Println("xx", event)
 	}
 }
 
@@ -145,11 +187,20 @@ func randFillOne() {
 
 func death() bool {
 	for i := 0; i < 3; i++ {
-		row := grid[i]
 		for j := 0; j < 3; j++ {
-			if row[j] == row[j+1] {
+			cell := grid[i][j]
+			if cell == grid[i][j+1] || cell == grid[i+1][j] {
 				return false
 			}
+		}
+	}
+	// check last row and col
+	for i := 0; i < 3; i++ {
+		if grid[i][3] == grid[i+1][3] {
+			return false
+		}
+		if grid[3][i] == grid[3][i+1] {
+			return false
 		}
 	}
 	return true
