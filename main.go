@@ -146,7 +146,7 @@ func main() {
 		printStatus()
 		if empSize == 0 && death() {
 			fmt.Println("end!")
-			os.Exit(0)
+			exit()
 		}
 	}
 }
@@ -157,7 +157,7 @@ func input() termbox.Key {
 		switch event.Type {
 		case termbox.EventKey:
 			if event.Key == termbox.KeyCtrlC {
-				os.Exit(0)
+				exit()
 			}
 			return event.Key
 		}
@@ -204,4 +204,9 @@ func death() bool {
 		}
 	}
 	return true
+}
+
+func exit() {
+	termbox.Close()
+	os.Exit(0)
 }
